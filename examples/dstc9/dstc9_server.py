@@ -43,8 +43,7 @@ def generate_for_queue(in_queue, out_queue):
         knowledge = in_request['knowledge']
         response = generate(context, knowledge)
 
-        res = {}
-        res['response'] = response[0]
+        res = {'response': response[0]}
         out_queue.put(res)
         in_queue.task_done()
 

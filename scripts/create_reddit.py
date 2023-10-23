@@ -61,14 +61,10 @@ def process(reddit_path):
                 history = 'EOS'.join(context[:idx+1])
                 response = context[idx+1]
 
-                if len(history) == 0:
+                if not history:
                     continue
 
-                example = {}
-                example['Context'] = history
-                example['Knowledge'] = ''
-                example['Response'] = response.strip()
-
+                example = {'Context': history, 'Knowledge': '', 'Response': response.strip()}
                 writer.write(example)
 
 

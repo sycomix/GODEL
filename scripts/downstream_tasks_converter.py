@@ -26,7 +26,6 @@ class Converter(ABC):
         self.start()
         self.process()
         self.end()
-        pass
 
     def start(self):
         print(f'Start processing {self.__class__.__name__} at {self.filepath}')
@@ -50,7 +49,7 @@ class WoWConverter(Converter):
         topic_data = {}
         for i in train_data:
             chosen_topic = i['chosen_topic']
-            if not chosen_topic in topic_data.keys():
+            if chosen_topic not in topic_data:
                 topic_data[chosen_topic] = []
             else:
                 topic_data[chosen_topic].append((i['persona'], i['dialog']))
@@ -133,9 +132,7 @@ class WoIConverter(Converter):
         for split in ['train', 'valid', 'test']:
             reader = jsonlines.open(f'{self.filepath}/{split}.jsonl')
             examples = []
-            num_of_dialogs = 0
             for dialog in reader:
-                num_of_dialogs += 1
                 example = {}
                 history = []
                 turn = ''
@@ -144,10 +141,7 @@ class WoIConverter(Converter):
                 history = [persona.replace('\n', ' ')]
 
                 for i in data['dialog_history']:
-                    if 'SearchAgent' in i['action']:
-                        continue
-
-                    else:
+                    if 'SearchAgent' not in i['action']:
                         if i['action'] == 'Wizard => Apprentice':
 
                             contents = []
@@ -159,11 +153,7 @@ class WoIConverter(Converter):
                             for selected_ in i['context']['selected_contents']:
                                 selected.extend(selected_)
 
-                            knowledge = []
-                            for c, s in zip(contents, selected[1:]):
-                                if s:
-                                    knowledge.append(c)
-
+                            knowledge = [c for c, s in zip(contents, selected[1:]) if s]
                             turn = i['text'].strip()
                             example['Context'] = ' EOS '.join(history)
                             example['Knowledge'] = ' '.join(knowledge)
@@ -175,12 +165,12 @@ class WoIConverter(Converter):
 
             with jsonlines.open(f'../data/woi/woi_{split}.jsonl', mode='w') as writer:
                 for i in examples:
-                    if split == 'train':
-                        if random.random() < 0.006:
-                            writer.write(i)
-                    else:
+                    if (
+                        split == 'train'
+                        and random.random() < 0.006
+                        or split != 'train'
+                    ):
                         writer.write(i)
-
         return super().process()
 
 
@@ -198,10 +188,7 @@ class CoQAConverter(Converter):
                     sotry, question = line.strip().split('||')
                     source_.append((sotry, question))
 
-            target_ = []
-            for line in target:
-                if line.strip() != '':
-                    target_.append(line.strip())
+            target_ = [line.strip() for line in target if line.strip() != '']
             examples = []
             for context, response in zip(source_, target_):
                 story, question = context
@@ -212,12 +199,12 @@ class CoQAConverter(Converter):
                 split = 'valid'
             with jsonlines.open(f'../data/coqa/coqa_{split}.jsonl', mode='w') as writer:
                 for i in examples:
-                    if split == 'train':
-                        if random.random() < 0.006:
-                            writer.write(i)
-                    else:
+                    if (
+                        split == 'train'
+                        and random.random() < 0.006
+                        or split != 'train'
+                    ):
                         writer.write(i)
-
         return super().process()
 
 
@@ -236,11 +223,9 @@ class MultiWOZConverter(Converter):
                     bs = turn['BS']
                     bs_str = []
                     for domain, states in bs.items():
-                        domain_str = []
-                        for state in states:
-                            domain_str.append(state[0] + ' = ' + state[1])
+                        domain_str = [f'{state[0]} = {state[1]}' for state in states]
                         domain_str = ' ; '.join(domain_str)
-                        bs_str.append(domain + ' ' + domain_str)
+                        bs_str.append(f'{domain} {domain_str}')
                     bs_str = ' | '.join(bs_str)
 
                     db_str = 'kb '
@@ -255,11 +240,11 @@ class MultiWOZConverter(Converter):
                         db_str += 'more than two'
 
                     act_seq = ' '.join(turn['act'].keys())
-                    example = {}
-                    example['Context'] = ' EOS '.join(history[:])
-                    example['Knowledge'] = bs_str + ' | ' + db_str
-                    example['Response'] = act_seq + ' | ' + turn['sys'].strip()
-
+                    example = {
+                        'Context': ' EOS '.join(history[:]),
+                        'Knowledge': f'{bs_str} | {db_str}',
+                        'Response': f'{act_seq} | ' + turn['sys'].strip(),
+                    }
                     history.append(turn['sys'].strip())
                     examples.append(copy.copy(example))
 
@@ -267,12 +252,12 @@ class MultiWOZConverter(Converter):
                 split = 'valid'
             with jsonlines.open(f'../data/multiwoz/multiwoz_{split}.jsonl', mode='w') as writer:
                 for i in examples:
-                    if split == 'train':
-                        if random.random() < 0.006:
-                            writer.write(i)
-                    else:
+                    if (
+                        split == 'train'
+                        and random.random() < 0.006
+                        or split != 'train'
+                    ):
                         writer.write(i)
-
         return super().process()
 
 

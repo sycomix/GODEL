@@ -49,7 +49,7 @@ def main():
     config = AutoConfig.from_pretrained(args.model_name_or_path)
     model = AutoModelForSeq2SeqLM.from_pretrained(
         args.model_name_or_path,
-        from_tf=bool(".ckpt" in args.model_name_or_path),
+        from_tf=".ckpt" in args.model_name_or_path,
         config=config,
     )
 
@@ -61,8 +61,9 @@ def main():
 def generate(context, knowledge):
     global model, args, tokenizer
 
-    input_ids = tokenizer(context + ' <|knowledge|> ' + knowledge +
-                          ' =>', return_tensors="pt").input_ids.to(args.device)
+    input_ids = tokenizer(
+        f'{context} <|knowledge|> {knowledge} =>', return_tensors="pt"
+    ).input_ids.to(args.device)
     gen_kwargs = {
         # 'num_beams': args.num_beams,
         'max_length': args.length,

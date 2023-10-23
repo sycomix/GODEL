@@ -238,16 +238,14 @@ def parse_args():
     )
     args = parser.parse_args()
 
-    # Sanity checks
     if args.dataset_name is None and args.train_file is None and args.validation_file is None:
         raise ValueError("Need either a dataset name or a training/validation file.")
-    else:
-        if args.train_file is not None:
-            extension = args.train_file.split(".")[-1]
-            assert extension in ["csv", "json"], "`train_file` should be a csv or a json file."
-        if args.validation_file is not None:
-            extension = args.validation_file.split(".")[-1]
-            assert extension in ["csv", "json"], "`validation_file` should be a csv or a json file."
+    if args.train_file is not None:
+        extension = args.train_file.split(".")[-1]
+        assert extension in ["csv", "json"], "`train_file` should be a csv or a json file."
+    if args.validation_file is not None:
+        extension = args.validation_file.split(".")[-1]
+        assert extension in ["csv", "json"], "`validation_file` should be a csv or a json file."
 
     if args.output_dir is not None:
         os.makedirs(args.output_dir, exist_ok=True)
@@ -340,7 +338,7 @@ def main():
     if args.model_name_or_path:
         model = AutoModelForSeq2SeqLM.from_pretrained(
             args.model_name_or_path,
-            from_tf=bool(".ckpt" in args.model_name_or_path),
+            from_tf=".ckpt" in args.model_name_or_path,
             config=config,
         )
     else:
@@ -363,10 +361,10 @@ def main():
         inputs = []
         for context, response, kb in zip(contextes, responses, kbs):
             if args.no_kb:
-                inputs.append(prefix + ' ' + ' ' + context + ' => ')
+                inputs.append(f'{prefix}  {context} => ')
             else:
-                inputs.append(context + ' <|Knowledge|> ' + kb + ' => ')
-                
+                inputs.append(f'{context} <|Knowledge|> {kb} => ')
+
         model_inputs = tokenizer(inputs, max_length=args.max_length, padding=padding, truncation=True)
 
         # Setup the tokenizer for targets
@@ -381,7 +379,7 @@ def main():
             ]
 
         model_inputs["labels"] = labels["labels"]
-        
+
         return model_inputs
 
     # Note that with `batched=True`, this map processes 1,000 texts together, so group_texts throws away a remainder
@@ -390,7 +388,7 @@ def main():
     #
     # To speed up this part, we use multiprocessing. See the documentation of the map method for more information:
     # https://huggingface.co/docs/datasets/package_reference/main_classes.html#datasets.Dataset.map
-    
+
     column_names = ['Context','Knowledge','Response']
     lm_datasets = raw_datasets.map(
         preprocess_function,
@@ -398,7 +396,7 @@ def main():
         remove_columns=column_names,
         num_proc=args.preprocessing_num_workers,
         load_from_cache_file=False,
-        desc=f"Processing dataset",
+        desc="Processing dataset",
     )
 
     train_dataset = lm_datasets["train"]
@@ -435,11 +433,19 @@ def main():
     no_decay = ["bias", "LayerNorm.weight"]
     optimizer_grouped_parameters = [
         {
-            "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
+            "params": [
+                p
+                for n, p in model.named_parameters()
+                if all(nd not in n for nd in no_decay)
+            ],
             "weight_decay": args.weight_decay,
         },
         {
-            "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
+            "params": [
+                p
+                for n, p in model.named_parameters()
+                if any(nd in n for nd in no_decay)
+            ],
             "weight_decay": 0.0,
         },
     ]
@@ -508,8 +514,8 @@ def main():
                 _decoded_labels = [[i.split()] for i in decoded_labels]
                 decoded_preds_extended.extend(_decoded_preds)
                 metric_bleu.add_batch(predictions=_decoded_preds, references=_decoded_labels)
-                
-                    
+
+
         result = metric.compute(use_stemmer=True)
         result = {key: value.mid.fmeasure * 100 for key, value in result.items()}
         result = {k: round(v, 4) for k, v in result.items()}

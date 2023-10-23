@@ -34,7 +34,7 @@ def clean_str(txt):
     for word in txt.split():
         i = word.find('http')
         if i >= 0:
-            word = word[:i] + ' ' + '__url__'
+            word = f'{word[:i]} __url__'
         words.append(word.strip())
     txt = ' '.join(words)
 
@@ -53,7 +53,7 @@ def clean_str(txt):
     txt = txt.replace(" won't ", " will n't ")
     txt = txt.replace(" can't ", " can n't ")
     for a in add_space:
-        txt = txt.replace(a+' ', ' '+a+' ')
+        txt = txt.replace(f'{a} ', f' {a} ')
 
     txt = re.sub(r'^\s+', '', txt)
     txt = re.sub(r'\s+$', '', txt)

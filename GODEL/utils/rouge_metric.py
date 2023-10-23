@@ -121,11 +121,8 @@ class Rouge(datasets.Metric):
             else:
                 scores.append(score)
 
-        if use_agregator:
-            result = aggregator.aggregate()
-        else:
-            result = {}
-            for key in scores[0]:
-                result[key] = list(score[key] for score in scores)
-
-        return result
+        return (
+            aggregator.aggregate()
+            if use_agregator
+            else {key: [score[key] for score in scores] for key in scores[0]}
+        )

@@ -27,7 +27,6 @@ class Converter(ABC):
         self.start()
         self.process()
         self.end()
-        pass
 
     def start(self):
         print(f'Start processing {self.__class__.__name__} at {self.filepath}')
@@ -55,11 +54,10 @@ class DSTC7Converter(Converter):
         examples = []
         for conv in convs:
             _, c_id, score, facts, context, response = conv.split('\t')
-            example = {}
             if context.strip() == 'START':
                 continue
             context = context.replace('START EOS TIL ', '')
-            example['Context'] = context.strip()
+            example = {'Context': context.strip()}
             example['Knowledge'] = facts.replace(
                 ' < p > ', '').replace(' < /p > ', '').strip()
             example['Response'] = response.strip()
@@ -86,8 +84,7 @@ class MSMARCOConverter(Converter):
             query, answer, passage = train_data['query'][ids], train_data['answers'][ids], train_data['passages'][ids]
             knowledge = [i['passage_text']
                          for i in passage if i['is_selected']]
-            example = {}
-            example['Context'] = query.strip()
+            example = {'Context': query.strip()}
             example['Knowledge'] = ' '.join(knowledge)
             example['Response'] = ' '.join(answer).strip()
             examples.append(copy.deepcopy(example))
@@ -112,10 +109,7 @@ class UnifiedQAConverter(Converter):
                     try:
                         question, answer = line.split('\t')
                         question, story = question.split('\\n')
-                        example = {}
-                        example['Context'] = question
-                        example['Response'] = answer
-                        example['Knowledge'] = story
+                        example = {'Context': question, 'Response': answer, 'Knowledge': story}
                         examples.append(copy.deepcopy(example))
                         k += 1
                     except:
@@ -186,7 +180,7 @@ class SGDConverter(Converter):
                                     idx) * (end - start) + sys_utter[end+offset:]
                                 candidates.append(
                                     (slot_name, str(idx) * (end - start)))
-                            for idx, info in enumerate(candidates):
+                            for info in candidates:
                                 slotname, target = info
                                 sys_utter = sys_utter.replace(
                                     target, f'[{slotname}]')
@@ -210,24 +204,16 @@ def merge_and_split():
     examples = []
     filepath = '../data/dstc7.jsonl'
     with open(filepath, "r", encoding="utf-8") as reader:
-        for item in jsonlines.Reader(reader):
-            examples.append(item)
-
+        examples.extend(iter(jsonlines.Reader(reader)))
     filepath = '../data/msmarco.jsonl'
     with open(filepath, "r", encoding="utf-8") as reader:
-        for item in jsonlines.Reader(reader):
-            examples.append(item)
-
+        examples.extend(iter(jsonlines.Reader(reader)))
     filepath = '../data/sgd.jsonl'
     with open(filepath, "r", encoding="utf-8") as reader:
-        for item in jsonlines.Reader(reader):
-            examples.append(item)
-
+        examples.extend(iter(jsonlines.Reader(reader)))
     filepath = '../data/unifiedqa.jsonl'
     with open(filepath, "r", encoding="utf-8") as reader:
-        for item in jsonlines.Reader(reader):
-            examples.append(item)
-
+        examples.extend(iter(jsonlines.Reader(reader)))
     random.seed(2021)
     train_writer = jsonlines.open(
         '../data/grounded_data_train.jsonl', mode='w')

@@ -32,10 +32,7 @@ def process(filepath):
                     kb_str.append(f'Q: {title} A: {body}')
                 kb_str = ' '.join(kb_str)
                 history = ' EOS '.join(history)
-                example = {}
-                example['Context'] = history
-                example['Knowledge'] = kb_str
-                example['Response'] = response
+                example = {'Context': history, 'Knowledge': kb_str, 'Response': response}
                 examples.append(copy.deepcopy(example))
 
         if folder == 'train':

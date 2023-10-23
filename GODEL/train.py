@@ -246,16 +246,14 @@ def parse_args():
 
     args = parser.parse_args()
 
-    # Sanity checks
     if args.dataset_name is None and args.train_file is None and args.validation_file is None:
         raise ValueError("Need either a dataset name or a training/validation file.")
-    else:
-        if args.train_file is not None:
-            extension = args.train_file.split(".")[-1]
-            assert extension in ["csv", "json"], "`train_file` should be a csv or a json file."
-        if args.validation_file is not None:
-            extension = args.validation_file.split(".")[-1]
-            assert extension in ["csv", "json"], "`validation_file` should be a csv or a json file."
+    if args.train_file is not None:
+        extension = args.train_file.split(".")[-1]
+        assert extension in ["csv", "json"], "`train_file` should be a csv or a json file."
+    if args.validation_file is not None:
+        extension = args.validation_file.split(".")[-1]
+        assert extension in ["csv", "json"], "`validation_file` should be a csv or a json file."
 
     if args.output_dir is not None:
         os.makedirs(args.output_dir, exist_ok=True)
@@ -362,7 +360,7 @@ def main():
     if args.model_name_or_path:
         model = AutoModelForSeq2SeqLM.from_pretrained(
             args.model_name_or_path,
-            from_tf=bool(".ckpt" in args.model_name_or_path),
+            from_tf=".ckpt" in args.model_name_or_path,
             config=config,
         )
     else:
@@ -380,13 +378,13 @@ def main():
         contextes = examples['Context']
         responses = examples['Response']
         kbs = examples['Knowledge']
-    
+
         inputs = []
         for context, kb in zip(contextes, kbs):
             if args.no_kb:
-                inputs.append(context + ' => ')
+                inputs.append(f'{context} => ')
             else:
-                _input = context + ' <|Knowledge|> ' + kb + ' => '
+                _input = f'{context} <|Knowledge|> {kb} => '
                 inputs.append(_input)
         model_inputs = tokenizer(inputs, max_length=args.max_length, padding=padding, truncation=True)
 
@@ -410,7 +408,7 @@ def main():
     #
     # To speed up this part, we use multiprocessing. See the documentation of the map method for more information:
     # https://huggingface.co/docs/datasets/package_reference/main_classes.html#datasets.Dataset.map
-    
+
     column_names = ['Context','Response','Knowledge']
     lm_datasets = raw_datasets.map(
         dataset_mapping_function,
@@ -418,7 +416,7 @@ def main():
         remove_columns=column_names,
         num_proc=args.preprocessing_num_workers,
         load_from_cache_file=False,
-        desc=f"Processing dataset",
+        desc="Processing dataset",
     )
 
     train_dataset = lm_datasets["train"]
@@ -454,11 +452,19 @@ def main():
     no_decay = ["bias", "LayerNorm.weight"]
     optimizer_grouped_parameters = [
         {
-            "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
+            "params": [
+                p
+                for n, p in model.named_parameters()
+                if all(nd not in n for nd in no_decay)
+            ],
             "weight_decay": args.weight_decay,
         },
         {
-            "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
+            "params": [
+                p
+                for n, p in model.named_parameters()
+                if any(nd in n for nd in no_decay)
+            ],
             "weight_decay": 0.0,
         },
     ]
@@ -510,7 +516,7 @@ def main():
             loss = loss / args.gradient_accumulation_steps
             tr_loss += loss.item()
             accelerator.backward(loss)
-            
+
             if step % args.gradient_accumulation_steps == 0 or step == len(train_dataloader) - 1:
                 optimizer.step()
                 lr_scheduler.step()
@@ -587,7 +593,7 @@ def main():
                     _decoded_labels = [[i.split()] for i in decoded_labels]
                     decoded_preds_all.extend(_decoded_preds)
                     metric_bleu.add_batch(predictions=_decoded_preds, references=_decoded_labels)
-                
+
             result = metric_rouge.compute(use_stemmer=True)
             result = {key: value.mid.fmeasure * 100 for key, value in result.items()}
             result = {k: round(v, 4) for k, v in result.items()}
